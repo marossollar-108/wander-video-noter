@@ -88,7 +88,8 @@ export function startPipeline(noteId: string): void {
   }
 
   // Spawn the Python process
-  const env = { ...process.env, KMP_DUPLICATE_LIB_OK: "TRUE", ANTHROPIC_API_KEY: apiKey || process.env.ANTHROPIC_API_KEY || "" };
+  const currentPath = process.env.PATH || "";
+  const env = { ...process.env, KMP_DUPLICATE_LIB_OK: "TRUE", ANTHROPIC_API_KEY: apiKey || process.env.ANTHROPIC_API_KEY || "", PATH: `/root/.deno/bin:${currentPath}` };
 
   const proc = spawn("python3", args, {
     env,
