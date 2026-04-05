@@ -57,7 +57,7 @@ export default function Sidebar({
         }}
       >
         <img
-          src="/logo.svg"
+          src={theme === "dark" ? "/logo-dark.svg" : "/logo.svg"}
           alt="Wander Video Noter"
           style={{
             width: 36,
