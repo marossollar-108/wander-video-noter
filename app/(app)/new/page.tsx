@@ -1,31 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+const ACCEPTED_VIDEO_TYPES = ".mp4,.mkv,.avi,.mov,.webm";
 
 export default function NewVideoPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"url" | "file">("url");
   const [url, setUrl] = useState("");
-  const [filePath, setFilePath] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState("");
   const [whisperModel, setWhisperModel] = useState("base");
   const [frameInterval, setFrameInterval] = useState("3");
   const [skipClassify, setSkipClassify] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canSubmit = mode === "url" ? !!url : !!filePath;
+  const canSubmit = mode === "url" ? !!url : !!file;
+
+  const handleFileSelect = useCallback((selectedFile: File | null) => {
+    if (selectedFile) {
+      setFile(selectedFile);
+      setFileName(selectedFile.name);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) {
+      handleFileSelect(droppedFile);
+    }
+  }, [handleFileSelect]);
 
   const handleSubmit = async () => {
     if (!canSubmit || isSubmitting) return;
     setIsSubmitting(true);
     try {
+      let uploadedFilePath: string | undefined;
+
+      if (mode === "file" && file) {
+        setUploadStatus("Nahráva sa súbor...");
+        const formData = new FormData();
+        formData.append("file", file);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) {
+          throw new Error("Upload failed");
+        }
+        const uploadData = await uploadRes.json();
+        uploadedFilePath = uploadData.filePath;
+      }
+
+      setUploadStatus("Spúšťa sa spracovanie...");
       await fetch("/api/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: mode === "url" ? url : undefined,
-          filePath: mode === "file" ? filePath : undefined,
+          filePath: mode === "file" ? uploadedFilePath : undefined,
           whisperModel,
           frameInterval: Number(frameInterval),
           skipClassify,
@@ -33,6 +90,7 @@ export default function NewVideoPage() {
       });
       router.push("/queue");
     } catch {
+      setUploadStatus("");
       setIsSubmitting(false);
     }
   };
@@ -167,44 +225,136 @@ export default function NewVideoPage() {
               fontFamily: "var(--font-body)",
             }}
           >
-            Cesta k súboru
+            Video súbor
           </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_VIDEO_TYPES}
+            onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
+            style={{ display: "none" }}
+          />
           <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             style={{
-              display: "flex",
-              background: "var(--md-surface-container)",
+              background: isDragOver
+                ? "color-mix(in srgb, var(--md-primary) 8%, var(--md-surface-container))"
+                : "var(--md-surface-container)",
               borderRadius: 12,
-              border: `1px solid ${filePath ? "var(--md-primary)" : "var(--md-outline-variant)"}`,
-              overflow: "hidden",
-              transition: "border-color 0.15s ease",
+              border: `2px dashed ${
+                isDragOver
+                  ? "var(--md-primary)"
+                  : file
+                    ? "var(--md-primary)"
+                    : "var(--md-outline-variant)"
+              }`,
+              padding: file ? "16px 20px" : "32px 20px",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
             }}
           >
-            <div
-              style={{
-                padding: "12px 16px",
-                display: "flex",
-                alignItems: "center",
-                borderRight: "1px solid var(--md-outline-variant)",
-              }}
-            >
-              <Icon name="video_file" size={20} style={{ color: "var(--md-on-surface-variant)" }} />
-            </div>
-            <input
-              type="text"
-              value={filePath}
-              onChange={(e) => setFilePath(e.target.value)}
-              placeholder="/cesta/k/suboru/video.mp4"
-              style={{
-                flex: 1,
-                padding: "12px 16px",
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                color: "var(--md-on-surface)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 14,
-              }}
-            />
+            {file ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  width: "100%",
+                }}
+              >
+                <Icon
+                  name="video_file"
+                  size={28}
+                  style={{ color: "var(--md-primary)", flexShrink: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: "var(--md-on-surface)",
+                      fontFamily: "var(--font-body)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {fileName}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--md-on-surface-variant)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {formatFileSize(file.size)}
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFile(null);
+                    setFileName("");
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 4,
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--md-on-surface-variant)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name="close" size={18} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Icon
+                  name="cloud_upload"
+                  size={36}
+                  style={{
+                    color: isDragOver
+                      ? "var(--md-primary)"
+                      : "var(--md-on-surface-variant)",
+                    transition: "color 0.15s ease",
+                  }}
+                />
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: "var(--md-on-surface)",
+                    fontFamily: "var(--font-body)",
+                  }}
+                >
+                  Pretiahnite video sem
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--md-on-surface-variant)",
+                    fontFamily: "var(--font-body)",
+                  }}
+                >
+                  alebo kliknite pre výber · MP4, MKV, AVI, MOV
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -402,7 +552,7 @@ export default function NewVideoPage() {
                 display: "inline-block",
               }}
             />
-            Spracováva sa...
+            {uploadStatus || "Spracováva sa..."}
           </>
         ) : (
           <>
