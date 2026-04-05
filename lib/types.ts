@@ -19,6 +19,8 @@ export interface Note {
   skip_classify: boolean;
   output_dir: string | null;
   html_path: string | null;
+  published: boolean;
+  published_at: string | null;
 }
 
 export interface Section {

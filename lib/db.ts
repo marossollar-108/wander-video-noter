@@ -41,7 +41,9 @@ function initSchema(db: Database.Database) {
       skip_classify INTEGER DEFAULT 0,
       output_dir TEXT,
       html_path TEXT,
-      notes_json TEXT
+      notes_json TEXT,
+      published INTEGER DEFAULT 0,
+      published_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS sections (
@@ -78,7 +80,14 @@ function initSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sections_note ON sections(note_id);
     CREATE INDEX IF NOT EXISTS idx_transcript_note ON transcript_segments(note_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_published ON notes(published);
   `);
+
+  // Migration: add published columns if missing
+  try {
+    db.exec(`ALTER TABLE notes ADD COLUMN published INTEGER DEFAULT 0`);
+    db.exec(`ALTER TABLE notes ADD COLUMN published_at TEXT`);
+  } catch { /* columns already exist */ }
 }
 
 // ─── Row → Type helpers ─────────────────────────────────────────────────────
@@ -105,6 +114,8 @@ function rowToNote(row: Record<string, unknown>): Note {
     skip_classify: !!(row.skip_classify as number),
     output_dir: row.output_dir as string | null,
     html_path: row.html_path as string | null,
+    published: !!(row.published as number),
+    published_at: row.published_at as string | null,
   };
 }
 
@@ -163,6 +174,28 @@ export function getNotes(filters?: {
   sql += " ORDER BY created_at DESC";
 
   return db.prepare(sql).all(...params).map((row) => rowToNote(row as Record<string, unknown>));
+}
+
+export function getPublishedNotes(search?: string): Note[] {
+  const db = getDb();
+  let sql = "SELECT * FROM notes WHERE published = 1 AND status = 'done'";
+  const params: unknown[] = [];
+  if (search) {
+    sql += " AND (title LIKE ? OR summary LIKE ?)";
+    params.push(`%${search}%`, `%${search}%`);
+  }
+  sql += " ORDER BY published_at DESC";
+  return db.prepare(sql).all(...params).map((row) => rowToNote(row as Record<string, unknown>));
+}
+
+export function publishNote(id: string): void {
+  const db = getDb();
+  db.prepare("UPDATE notes SET published = 1, published_at = datetime('now') WHERE id = ?").run(id);
+}
+
+export function unpublishNote(id: string): void {
+  const db = getDb();
+  db.prepare("UPDATE notes SET published = 0, published_at = NULL WHERE id = ?").run(id);
 }
 
 export function getNoteById(id: string): Note | null {

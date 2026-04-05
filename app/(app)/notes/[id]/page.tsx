@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -20,12 +20,29 @@ export default function NoteDetailPage() {
   const id = params.id as string;
   const [activeTab, setActiveTab] = useState<"notes" | "transcript">("notes");
 
-  const { data } = useSWR<{ note: NoteDetail }>(
+  const { data, mutate } = useSWR<{ note: NoteDetail }>(
     id ? `/api/notes/${id}` : null,
     fetcher
   );
 
+  const [publishing, setPublishing] = useState(false);
+
   const note = data?.note;
+
+  const handlePublish = useCallback(async () => {
+    if (!note || publishing) return;
+    setPublishing(true);
+    try {
+      if (note.published) {
+        await fetch(`/api/notes/${note.id}/publish`, { method: "DELETE" });
+      } else {
+        await fetch(`/api/notes/${note.id}/publish`, { method: "POST" });
+      }
+      await mutate();
+    } finally {
+      setPublishing(false);
+    }
+  }, [note, publishing, mutate]);
 
   if (!note) {
     return (
@@ -108,7 +125,44 @@ export default function NoteDetailPage() {
           </div>
 
           {/* Actions */}
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+            <button
+              onClick={handlePublish}
+              disabled={publishing}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 20,
+                border: `1px solid ${note.published ? "#10B981" : "var(--md-outline-variant)"}`,
+                background: "transparent",
+                color: note.published ? "#10B981" : "var(--md-on-surface-variant)",
+                cursor: publishing ? "wait" : "pointer",
+                fontFamily: "var(--font-body)",
+                fontSize: 13,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                opacity: publishing ? 0.6 : 1,
+              }}
+            >
+              <Icon name={note.published ? "public_off" : "public"} size={16} />
+              {note.published ? "Zrusit zverejnenie" : "Zverejnit"}
+            </button>
+            {note.published && (
+              <Link
+                href={`/galeria/${note.id}`}
+                style={{
+                  fontSize: 12,
+                  color: "#10B981",
+                  fontFamily: "var(--font-mono)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <Icon name="link" size={14} />
+                Verejny odkaz
+              </Link>
+            )}
             <button
               onClick={() => {
                 if (note.html_path) {

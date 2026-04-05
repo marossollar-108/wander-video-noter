@@ -100,6 +100,7 @@ export default function LandingPage() {
           <div className="lnav-links">
             <a href="#about">O aplikacii</a>
             <a href="#features">Funkcie</a>
+            <a href="/galeria">Galeria</a>
             <a href="#origin">Pribeh</a>
             <a href="https://github.com/marossollar-108/wander-video-noter" target="_blank" rel="noopener">Zdrojovy kod</a>
           </div>
