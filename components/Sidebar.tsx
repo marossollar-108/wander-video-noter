@@ -56,20 +56,15 @@ export default function Sidebar({
           minHeight: 72,
         }}
       >
-        <div
+        <img
+          src="/logo.svg"
+          alt="Wander Video Noter"
           style={{
             width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "var(--md-primary)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            height: 44,
             flexShrink: 0,
           }}
-        >
-          <Icon name="play_circle" size={22} style={{ color: "var(--md-on-primary)" }} />
-        </div>
+        />
         {!collapsed && (
           <div style={{ overflow: "hidden" }}>
             <div
