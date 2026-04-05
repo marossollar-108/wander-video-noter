@@ -165,6 +165,16 @@ export function startPipeline(noteId: string): void {
           output_dir: outputDir,
           html_path: htmlPath,
         });
+
+        // Clean up uploaded local video file after processing
+        if (note.source === "local" && note.original_path) {
+          try {
+            const uploadsDir = path.join(process.cwd(), "uploads");
+            if (note.original_path.startsWith(uploadsDir)) {
+              fs.unlinkSync(note.original_path);
+            }
+          } catch { /* ignore cleanup errors */ }
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         db.updateNote(noteId, {

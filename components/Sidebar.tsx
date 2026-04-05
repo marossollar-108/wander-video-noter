@@ -81,11 +81,13 @@ export default function Sidebar({
             </div>
             <div
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                color: "var(--md-on-surface-variant)",
-                letterSpacing: "0.05em",
+                fontFamily: "var(--font-heading)",
+                fontSize: 14,
+                color: "var(--md-primary)",
+                letterSpacing: "0.03em",
                 textTransform: "uppercase",
+                fontWeight: 700,
+                fontStyle: "italic",
               }}
             >
               Noter
@@ -137,22 +139,6 @@ export default function Sidebar({
             >
               <Icon name={item.icon} size={22} />
               {!collapsed && <span style={{ whiteSpace: "nowrap" }}>{item.label}</span>}
-              {item.id === "queue" && !collapsed && (
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    background: "var(--md-primary)",
-                    color: "var(--md-on-primary)",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    borderRadius: 99,
-                    padding: "2px 8px",
-                    fontFamily: "var(--font-mono)",
-                  }}
-                >
-                  2
-                </span>
-              )}
             </Link>
           );
         })}

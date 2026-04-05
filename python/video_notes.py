@@ -371,6 +371,7 @@ def generate_notes(
     frames: list[dict],
     output_dir: str,
     language: str,
+    source_url: str = None,
 ) -> str:
     """
     Use Claude to create structured notes, then wrap in HTML template.
@@ -455,7 +456,7 @@ Return ONLY valid JSON, no markdown fences."""
     notes = json.loads(text)
 
     # Build HTML
-    html = _build_html(title, notes, language)
+    html = _build_html(title, notes, language, source_url=source_url)
     output_path = os.path.join(output_dir, "notes.html")
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
@@ -464,7 +465,7 @@ Return ONLY valid JSON, no markdown fences."""
     return output_path, notes
 
 
-def _build_html(title: str, notes: dict, language: str) -> str:
+def _build_html(title: str, notes: dict, language: str, source_url: str = None) -> str:
     """Generate a polished, self-contained HTML page using Wander Video Noter branding."""
 
     sections_html = ""
@@ -508,6 +509,16 @@ def _build_html(title: str, notes: dict, language: str) -> str:
         toc_items += f'<li><a href="#section-{i}"><span class="toc-num">{str(i+1).zfill(2)}</span>{sec.get("title", f"Section {i+1}")}</a></li>'
 
     summary = notes.get("summary", "")
+
+    from datetime import datetime
+    generated_at = datetime.now().strftime("%d.%m.%Y %H:%M")
+
+    source_html = ""
+    if source_url:
+        source_html = f"""
+    <div class="source-link">
+      <a href="{source_url}" target="_blank" rel="noopener">▶ Pozrieť pôvodné video</a>
+    </div>"""
 
     return f"""<!DOCTYPE html>
 <html lang="{language}">
@@ -716,6 +727,35 @@ def _build_html(title: str, notes: dict, language: str) -> str:
   .takeaways ul {{ padding-left: 1.25rem; margin: 0; }}
   .takeaways li {{ margin-bottom: 0.25rem; font-size: 0.9rem; }}
 
+  .source-link {{
+    margin-top: 1rem;
+  }}
+
+  .source-link a {{
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    transition: background 0.15s;
+  }}
+
+  .source-link a:hover {{
+    background: var(--primary-container);
+  }}
+
+  .generated-at {{
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    margin-top: 0.5rem;
+  }}
+
   footer {{
     text-align: center;
     margin-top: 3rem;
@@ -740,6 +780,8 @@ def _build_html(title: str, notes: dict, language: str) -> str:
     <div class="brand"><span class="brand-dot"></span> Wander Video Noter</div>
     <h1>{title}</h1>
     <p class="summary">{summary}</p>
+    {source_html}
+    <p class="generated-at">Vygenerované: {generated_at}</p>
   </header>
 
   <nav class="toc">
@@ -833,12 +875,17 @@ def run_pipeline(
 
         # 7. Generate HTML
         _write_progress(progress_file, "generate", 7, 85, "Generating structured notes via Claude...")
+        # Determine source URL for YouTube videos
+        yt_pattern_check = re.compile(r"(https?://)?(www\.)?(youtube\.com|youtu\.be)/")
+        _source_url = source if yt_pattern_check.match(source) else None
+
         html_path, notes = generate_notes(
             title=title,
             transcript=transcript,
             frames=useful_frames,
             output_dir=output_dir,
             language=transcript["language"],
+            source_url=_source_url,
         )
 
         # 8. Optionally write result.json
