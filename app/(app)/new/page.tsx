@@ -28,7 +28,7 @@ export default function NewVideoPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canSubmit = mode === "url" ? !!url : !!file;
+  const canSubmit = !!file;
 
   const handleFileSelect = useCallback((selectedFile: File | null) => {
     if (selectedFile) {
@@ -56,48 +56,26 @@ export default function NewVideoPage() {
     }
   }, [handleFileSelect]);
 
-  const [submitError, setSubmitError] = useState("");
+  const [showYtHelp, setShowYtHelp] = useState(false);
+
+  // When user enters a YouTube URL, show help to download + upload
+  const handleUrlSubmit = () => {
+    setShowYtHelp(true);
+  };
 
   const handleSubmit = async () => {
-    if (!canSubmit || isSubmitting) return;
+    if (!file || isSubmitting) return;
     setIsSubmitting(true);
-    setSubmitError("");
     try {
-      let uploadedFilePath: string | undefined;
-      let videoTitle: string | undefined;
-
-      if (mode === "url") {
-        // YouTube URL — download video to server first
-        setUploadStatus("Sťahujem video z YouTube...");
-        const dlRes = await fetch("/api/youtube/download", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
-        });
-        const dlData = await dlRes.json();
-        if (!dlRes.ok) {
-          setSubmitError(dlData.error || "Stahovanie zlyhalo");
-          setUploadStatus("");
-          setIsSubmitting(false);
-          return;
-        }
-        uploadedFilePath = dlData.filePath;
-        videoTitle = dlData.title;
-      } else if (mode === "file" && file) {
-        // Local file upload
-        setUploadStatus("Nahráva sa súbor...");
-        const formData = new FormData();
-        formData.append("file", file);
-        const uploadRes = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-        if (!uploadRes.ok) {
-          throw new Error("Upload failed");
-        }
-        const uploadData = await uploadRes.json();
-        uploadedFilePath = uploadData.filePath;
-      }
+      setUploadStatus("Nahráva sa súbor...");
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const uploadData = await uploadRes.json();
 
       setUploadStatus("Spúšťa sa spracovanie...");
       await fetch("/api/notes", {
@@ -105,8 +83,8 @@ export default function NewVideoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: mode === "url" ? url : undefined,
-          filePath: uploadedFilePath,
-          fileName: mode === "file" ? fileName : videoTitle,
+          filePath: uploadData.filePath,
+          fileName: fileName,
           whisperModel,
           frameInterval: Number(frameInterval),
           skipClassify,
@@ -223,7 +201,7 @@ export default function NewVideoPage() {
             <input
               type="text"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => { setUrl(e.target.value); setShowYtHelp(false); }}
               placeholder="https://youtube.com/watch?v=..."
               style={{
                 flex: 1,
@@ -237,6 +215,102 @@ export default function NewVideoPage() {
               }}
             />
           </div>
+
+          {/* YouTube URL entered — show download instructions */}
+          {url && !showYtHelp && !file && (
+            <button onClick={handleUrlSubmit} style={{
+              width: "100%", marginTop: 12, padding: "12px 20px",
+              background: "var(--md-primary)", color: "var(--md-on-primary)",
+              border: "none", borderRadius: 12, fontFamily: "var(--font-heading)",
+              fontSize: 14, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}>
+              <Icon name="arrow_forward" size={18} /> Pokracovat
+            </button>
+          )}
+
+          {showYtHelp && !file && (
+            <div style={{
+              marginTop: 16, padding: 20, borderRadius: 16,
+              background: "var(--md-surface-container)", border: "1px solid var(--md-outline-variant)",
+            }}>
+              <div style={{
+                fontFamily: "var(--font-heading)", fontSize: 15, fontWeight: 600,
+                color: "var(--md-on-surface)", marginBottom: 12,
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                <Icon name="download" size={20} style={{ color: "var(--md-primary)" }} />
+                Stiahnite video a nahrajte ho
+              </div>
+              <div style={{ fontSize: 13, color: "var(--md-on-surface-variant)", lineHeight: 1.7 }}>
+                <p style={{ marginBottom: 12 }}>
+                  YouTube videa sa nedaju spracovat priamo zo servera. Stiahnite si video jednym z tychto sposobov:
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                  <a href={`https://cobalt.tools/#${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer" style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                    borderRadius: 10, background: "var(--md-surface-container-high)",
+                    border: "1px solid var(--md-outline-variant)", textDecoration: "none", color: "var(--md-on-surface)",
+                    fontSize: 13, fontWeight: 500,
+                  }}>
+                    <Icon name="open_in_new" size={16} style={{ color: "var(--md-primary)" }} />
+                    cobalt.tools — jednoduchy online nastroj (odporucame)
+                  </a>
+                  <a href={`https://ssyoutube.com/watch?v=${url.split("v=")[1]?.split("&")[0] || ""}`} target="_blank" rel="noopener noreferrer" style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                    borderRadius: 10, background: "var(--md-surface-container-high)",
+                    border: "1px solid var(--md-outline-variant)", textDecoration: "none", color: "var(--md-on-surface)",
+                    fontSize: 13, fontWeight: 500,
+                  }}>
+                    <Icon name="open_in_new" size={16} style={{ color: "var(--md-primary)" }} />
+                    ssyoutube.com — alternativa
+                  </a>
+                </div>
+                <p style={{ marginBottom: 12, fontStyle: "italic", color: "var(--md-on-surface-variant)" }}>
+                  Po stiahnutí pretiahnte .mp4 súbor sem:
+                </p>
+              </div>
+
+              {/* Inline drop zone */}
+              <div
+                style={{
+                  border: `2px dashed ${isDragOver ? "var(--md-primary)" : "var(--md-outline-variant)"}`,
+                  borderRadius: 12, padding: "24px 16px", textAlign: "center",
+                  background: isDragOver ? "var(--md-primary-container)" : "transparent",
+                  transition: "all 0.2s ease", cursor: "pointer",
+                }}
+                onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Icon name="cloud_upload" size={32} style={{ color: "var(--md-on-surface-variant)", marginBottom: 8, display: "block", margin: "0 auto 8px" }} />
+                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--md-on-surface)" }}>Pretiahni video sem</div>
+                <div style={{ fontSize: 12, color: "var(--md-on-surface-variant)", marginTop: 4 }}>alebo klikni pre vyber</div>
+              </div>
+              <input ref={fileInputRef} type="file" accept={ACCEPTED_VIDEO_TYPES} style={{ display: "none" }}
+                onChange={(e) => handleFileSelect(e.target.files?.[0] || null)} />
+            </div>
+          )}
+
+          {/* File selected after YouTube help */}
+          {showYtHelp && file && (
+            <div style={{
+              marginTop: 16, padding: "14px 18px", borderRadius: 12,
+              background: "var(--md-surface-container)", border: "1px solid #10B981",
+              display: "flex", alignItems: "center", gap: 12,
+            }}>
+              <Icon name="check_circle" size={22} style={{ color: "#10B981" }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--md-on-surface)" }}>{fileName}</div>
+                <div style={{ fontSize: 12, color: "var(--md-on-surface-variant)" }}>{file ? formatFileSize(file.size) : ""}</div>
+              </div>
+              <button onClick={() => { setFile(null); setFileName(""); }} style={{
+                background: "transparent", border: "none", color: "var(--md-on-surface-variant)",
+                cursor: "pointer", padding: 4,
+              }}>
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ marginBottom: 24 }}>
@@ -576,30 +650,7 @@ export default function NewVideoPage() {
         </div>
       </div>
 
-      {/* Submit */}
-      {/* Error message */}
-      {submitError && (
-        <div style={{
-          padding: "12px 16px", marginBottom: 16, borderRadius: 12,
-          background: "rgba(235,0,47,0.1)", border: "1px solid rgba(235,0,47,0.2)",
-          color: "var(--md-on-surface)", fontSize: 13, display: "flex", gap: 10, alignItems: "flex-start",
-        }}>
-          <Icon name="error" size={18} style={{ color: "var(--md-primary)", flexShrink: 0, marginTop: 1 }} />
-          <div>
-            <div>{submitError}</div>
-            {submitError.includes("manualne") && (
-              <button onClick={() => { setMode("file"); setSubmitError(""); }} style={{
-                marginTop: 8, padding: "6px 14px", borderRadius: 8,
-                background: "var(--md-surface-container-high)", border: "1px solid var(--md-outline-variant)",
-                color: "var(--md-on-surface)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-body)",
-              }}>
-                Prepnut na nahravanie suboru
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
+      {/* Submit — only when file is ready */}
       <button
         onClick={handleSubmit}
         disabled={isSubmitting || !canSubmit}
