@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     const {
       url,
       filePath,
+      fileName,
       whisperModel,
       frameInterval,
       hashThreshold,
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
     } = body as {
       url?: string;
       filePath?: string;
+      fileName?: string;
       whisperModel?: string;
       frameInterval?: number;
       hashThreshold?: number;
@@ -55,8 +57,10 @@ export async function POST(request: NextRequest) {
 
     let title: string;
     if (url) {
-      // Use the URL as-is for the title; strip protocol for readability
       title = url.replace(/^https?:\/\//, "").slice(0, 120);
+    } else if (fileName) {
+      // Use original file name without extension
+      title = path.basename(fileName, path.extname(fileName));
     } else {
       title = path.basename(filePath!, path.extname(filePath!));
     }

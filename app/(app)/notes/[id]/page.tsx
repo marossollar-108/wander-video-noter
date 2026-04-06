@@ -102,51 +102,51 @@ export default function NoteDetailPage() {
           Spat do kniznice
         </Link>
 
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-          <div style={{ flex: 1 }}>
-            <h1
-              style={{
-                fontFamily: "var(--font-heading)",
-                fontSize: 24,
-                fontWeight: 700,
-                color: "var(--md-on-surface)",
-                marginBottom: 8,
-                letterSpacing: "-0.02em",
-              }}
-            >
-              {note.title}
-            </h1>
+        <div>
+          <h1 style={{
+            fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 700,
+            color: "var(--md-on-surface)", marginBottom: 8, letterSpacing: "-0.02em",
+          }}>
+            {note.title}
+          </h1>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 16,
-                fontSize: 13,
-                color: "var(--md-on-surface-variant)",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {note.duration && (
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <Icon name="schedule" size={15} /> {note.duration}
-                </span>
-              )}
-              {note.language && (
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <Icon name="language" size={15} /> {note.language.toUpperCase()}
-                </span>
-              )}
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <Icon name="article" size={15} /> {sectionsCount} sekcii
+          {/* Metadata row */}
+          <div style={{
+            display: "flex", gap: 8, flexWrap: "wrap",
+            fontSize: 12, color: "var(--md-on-surface-variant)", fontFamily: "var(--font-mono)",
+            marginBottom: 12,
+          }}>
+            {note.duration && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                <Icon name="schedule" size={14} /> {note.duration}
               </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <Icon name="image" size={15} /> {imagesCount} obrazkov
+            )}
+            {note.language && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                <Icon name="language" size={14} /> {note.language.toUpperCase()}
               </span>
-            </div>
+            )}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+              <Icon name="article" size={14} /> {sectionsCount} sekcii
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+              <Icon name="image" size={14} /> {imagesCount} obrazkov
+            </span>
           </div>
 
-          {/* Actions */}
-          <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+          {/* YouTube source link */}
+          {note.url && (
+            <a href={note.url.startsWith("http") ? note.url : `https://${note.url}`} target="_blank" rel="noopener noreferrer" style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              fontSize: 13, color: "var(--md-primary)", textDecoration: "none",
+              marginBottom: 16, fontFamily: "var(--font-body)",
+            }}>
+              <Icon name="smart_display" size={16} /> Pozriet povodne video
+            </a>
+          )}
+
+          {/* Actions — wrapping on mobile */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <button
               onClick={handlePublish}
               disabled={publishing}

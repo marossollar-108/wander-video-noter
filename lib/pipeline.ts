@@ -159,6 +159,7 @@ export function startPipeline(noteId: string): void {
           status: "done",
           progress: 100,
           current_step: null,
+          title: result.title || note.title,
           summary: result.summary,
           language: result.language,
           duration: duration,

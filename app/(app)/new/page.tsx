@@ -83,6 +83,7 @@ export default function NewVideoPage() {
         body: JSON.stringify({
           url: mode === "url" ? url : undefined,
           filePath: mode === "file" ? uploadedFilePath : undefined,
+          fileName: mode === "file" ? fileName : undefined,
           whisperModel,
           frameInterval: Number(frameInterval),
           skipClassify,
