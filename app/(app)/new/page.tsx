@@ -63,22 +63,28 @@ export default function NewVideoPage() {
     setShowYtHelp(true);
   };
 
+  const [submitError, setSubmitError] = useState("");
+
   const handleSubmit = async () => {
     if (!file || isSubmitting) return;
     setIsSubmitting(true);
+    setSubmitError("");
     try {
-      setUploadStatus("Nahráva sa súbor...");
+      setUploadStatus(`Nahráva sa súbor (${formatFileSize(file.size)})...`);
       const formData = new FormData();
       formData.append("file", file);
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-      if (!uploadRes.ok) throw new Error("Upload failed");
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Upload zlyhal (${uploadRes.status})`);
+      }
       const uploadData = await uploadRes.json();
 
-      setUploadStatus("Spúšťa sa spracovanie...");
-      await fetch("/api/notes", {
+      setUploadStatus("Vytvára sa poznámka...");
+      const noteRes = await fetch("/api/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -91,12 +97,18 @@ export default function NewVideoPage() {
           outputLanguage: outputLanguage !== "auto" ? outputLanguage : undefined,
         }),
       });
+      if (!noteRes.ok) {
+        const errData = await noteRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Vytvorenie poznámky zlyhalo (${noteRes.status})`);
+      }
+
+      setUploadStatus("Presmerovávam na frontu...");
       router.push("/queue");
     } catch (err) {
       console.error("Submit error:", err);
       setUploadStatus("");
       setIsSubmitting(false);
-      alert("Chyba pri nahravani suboru. Skuste to znova.");
+      setSubmitError(err instanceof Error ? err.message : "Niečo sa pokazilo. Skúste to znova.");
     }
   };
 
@@ -651,6 +663,18 @@ export default function NewVideoPage() {
           </div>
         </div>
       </div>
+
+      {/* Error */}
+      {submitError && (
+        <div style={{
+          padding: "12px 16px", marginBottom: 16, borderRadius: 12,
+          background: "rgba(235,0,47,0.1)", border: "1px solid rgba(235,0,47,0.25)",
+          color: "#ff6b6b", fontSize: 13, display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <Icon name="error" size={18} style={{ flexShrink: 0 }} />
+          {submitError}
+        </div>
+      )}
 
       {/* Submit — only when file is ready */}
       <button
