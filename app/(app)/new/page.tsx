@@ -56,13 +56,35 @@ export default function NewVideoPage() {
     }
   }, [handleFileSelect]);
 
+  const [submitError, setSubmitError] = useState("");
+
   const handleSubmit = async () => {
     if (!canSubmit || isSubmitting) return;
     setIsSubmitting(true);
+    setSubmitError("");
     try {
       let uploadedFilePath: string | undefined;
+      let videoTitle: string | undefined;
 
-      if (mode === "file" && file) {
+      if (mode === "url") {
+        // YouTube URL — download video to server first
+        setUploadStatus("Sťahujem video z YouTube...");
+        const dlRes = await fetch("/api/youtube/download", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        const dlData = await dlRes.json();
+        if (!dlRes.ok) {
+          setSubmitError(dlData.error || "Stahovanie zlyhalo");
+          setUploadStatus("");
+          setIsSubmitting(false);
+          return;
+        }
+        uploadedFilePath = dlData.filePath;
+        videoTitle = dlData.title;
+      } else if (mode === "file" && file) {
+        // Local file upload
         setUploadStatus("Nahráva sa súbor...");
         const formData = new FormData();
         formData.append("file", file);
@@ -83,8 +105,8 @@ export default function NewVideoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: mode === "url" ? url : undefined,
-          filePath: mode === "file" ? uploadedFilePath : undefined,
-          fileName: mode === "file" ? fileName : undefined,
+          filePath: uploadedFilePath,
+          fileName: mode === "file" ? fileName : videoTitle,
           whisperModel,
           frameInterval: Number(frameInterval),
           skipClassify,
@@ -555,6 +577,29 @@ export default function NewVideoPage() {
       </div>
 
       {/* Submit */}
+      {/* Error message */}
+      {submitError && (
+        <div style={{
+          padding: "12px 16px", marginBottom: 16, borderRadius: 12,
+          background: "rgba(235,0,47,0.1)", border: "1px solid rgba(235,0,47,0.2)",
+          color: "var(--md-on-surface)", fontSize: 13, display: "flex", gap: 10, alignItems: "flex-start",
+        }}>
+          <Icon name="error" size={18} style={{ color: "var(--md-primary)", flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <div>{submitError}</div>
+            {submitError.includes("manualne") && (
+              <button onClick={() => { setMode("file"); setSubmitError(""); }} style={{
+                marginTop: 8, padding: "6px 14px", borderRadius: 8,
+                background: "var(--md-surface-container-high)", border: "1px solid var(--md-outline-variant)",
+                color: "var(--md-on-surface)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-body)",
+              }}>
+                Prepnut na nahravanie suboru
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <button
         onClick={handleSubmit}
         disabled={isSubmitting || !canSubmit}
