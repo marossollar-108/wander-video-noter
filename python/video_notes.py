@@ -138,7 +138,7 @@ def extract_audio(video_path: str, work_dir: str) -> str:
     """Extract audio track as WAV (16kHz mono — optimal for Whisper)."""
     audio_path = os.path.join(work_dir, "audio.wav")
     print("🔊 Extracting audio...")
-    subprocess.run(
+    result = subprocess.run(
         [
             "ffmpeg", "-i", video_path,
             "-vn",                    # no video
@@ -149,8 +149,12 @@ def extract_audio(video_path: str, work_dir: str) -> str:
             audio_path,
         ],
         capture_output=True,
-        check=True,
     )
+    # ffmpeg may return non-zero but still produce usable audio
+    if not os.path.isfile(audio_path) or os.path.getsize(audio_path) < 1000:
+        raise RuntimeError(f"Audio extraction failed (exit {result.returncode}): {result.stderr.decode()[-500:]}")
+    if result.returncode != 0:
+        print(f"   ⚠️  ffmpeg warning (exit {result.returncode}) — audio file exists, continuing")
     return audio_path
 
 

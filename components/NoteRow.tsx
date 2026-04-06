@@ -13,11 +13,9 @@ export default function NoteRow({
   compact?: boolean;
   onClick?: () => void;
 }) {
-  const dateStr = new Date(note.created_at).toLocaleDateString("sk-SK", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const d = new Date(note.created_at + "Z");
+  const dateStr = d.toLocaleDateString("sk-SK", { day: "numeric", month: "short" })
+    + " " + d.toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   return (
     <div
