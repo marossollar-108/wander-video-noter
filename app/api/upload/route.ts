@@ -4,6 +4,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
 export const runtime = "nodejs";
+export const maxDuration = 300; // 5 minutes for large uploads
 
 export async function POST(request: NextRequest) {
   try {

@@ -92,9 +92,11 @@ export default function NewVideoPage() {
         }),
       });
       router.push("/queue");
-    } catch {
+    } catch (err) {
+      console.error("Submit error:", err);
       setUploadStatus("");
       setIsSubmitting(false);
+      alert("Chyba pri nahravani suboru. Skuste to znova.");
     }
   };
 
