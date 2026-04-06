@@ -19,7 +19,7 @@ export default function NewVideoPage() {
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
-  const [whisperModel, setWhisperModel] = useState("base");
+  const [whisperModel, setWhisperModel] = useState("tiny");
   const [frameInterval, setFrameInterval] = useState("3");
   const [skipClassify, setSkipClassify] = useState(false);
   const [outputLanguage, setOutputLanguage] = useState("auto");
