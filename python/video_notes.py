@@ -54,9 +54,9 @@ from typing import Optional
 def _check_deps():
     missing = []
     try:
-        import whisper  # noqa: F401
+        from faster_whisper import WhisperModel  # noqa: F401
     except ImportError:
-        missing.append("openai-whisper")
+        missing.append("faster-whisper")
     try:
         import yt_dlp  # noqa: F401
     except ImportError:
@@ -160,21 +160,22 @@ def extract_audio(video_path: str, work_dir: str) -> str:
 
 def transcribe(audio_path: str, model_name: str = "base") -> dict:
     """
-    Transcribe audio with Whisper. Returns dict with:
+    Transcribe audio with faster-whisper (CTranslate2).
+    Uses ~3x less RAM than openai-whisper.
+    Returns dict with:
       - language: detected language
       - segments: list of {start, end, text}
       - full_text: concatenated transcript
     """
-    import whisper
-    print(f"🎤 Transcribing with Whisper ({model_name})...")
-    model = whisper.load_model(model_name)
-    result = model.transcribe(audio_path, verbose=False)
-    language = result.get("language", "unknown")
+    from faster_whisper import WhisperModel
+    print(f"🎤 Transcribing with faster-whisper ({model_name})...")
+    model = WhisperModel(model_name, device="cpu", compute_type="int8")
+    result_segments, info = model.transcribe(audio_path, beam_size=5)
+    language = info.language or "unknown"
     print(f"   Detected language: {language}")
-    segments = [
-        {"start": seg["start"], "end": seg["end"], "text": seg["text"].strip()}
-        for seg in result["segments"]
-    ]
+    segments = []
+    for seg in result_segments:
+        segments.append({"start": seg.start, "end": seg.end, "text": seg.text.strip()})
     full_text = " ".join(s["text"] for s in segments)
     print(f"   Segments: {len(segments)}, Total chars: {len(full_text)}")
     return {"language": language, "segments": segments, "full_text": full_text}
