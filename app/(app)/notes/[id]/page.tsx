@@ -26,8 +26,29 @@ export default function NoteDetailPage() {
   );
 
   const [publishing, setPublishing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const note = data?.note;
+
+  const handleCopyLink = useCallback(async () => {
+    if (!note) return;
+    const url = `${window.location.origin}/galeria/${note.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback
+      const input = document.createElement("input");
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [note]);
 
   const handlePublish = useCallback(async () => {
     if (!note || publishing) return;
@@ -148,20 +169,27 @@ export default function NoteDetailPage() {
               {note.published ? "Zrusit zverejnenie" : "Zverejnit"}
             </button>
             {note.published && (
-              <Link
-                href={`/galeria/${note.id}`}
+              <button
+                onClick={handleCopyLink}
                 style={{
+                  padding: "6px 14px",
+                  borderRadius: 20,
+                  border: `1px solid ${copied ? "#10B981" : "var(--md-outline-variant)"}`,
+                  background: copied ? "#10B98115" : "transparent",
+                  color: copied ? "#10B981" : "var(--md-on-surface-variant)",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-body)",
                   fontSize: 12,
-                  color: "#10B981",
-                  fontFamily: "var(--font-mono)",
+                  fontWeight: 500,
                   display: "flex",
                   alignItems: "center",
-                  gap: 4,
+                  gap: 5,
+                  transition: "all 0.2s ease",
                 }}
               >
-                <Icon name="link" size={14} />
-                Verejny odkaz
-              </Link>
+                <Icon name={copied ? "check" : "link"} size={14} />
+                {copied ? "Skopirovane!" : "Kopirovat odkaz"}
+              </button>
             )}
             <button
               onClick={() => {
