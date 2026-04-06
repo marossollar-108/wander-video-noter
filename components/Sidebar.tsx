@@ -29,8 +29,9 @@ export default function Sidebar({
   };
 
   return (
-    <nav
-      style={{
+    <>
+      {/* ── Desktop sidebar ── */}
+      <nav className="sidebar-desktop" style={{
         width: collapsed ? 64 : 240,
         minHeight: "100vh",
         background: "var(--md-surface-container)",
@@ -43,171 +44,148 @@ export default function Sidebar({
         top: 0,
         zIndex: 100,
         overflow: "hidden",
-      }}
-    >
-      {/* Logo area */}
-      <div
-        style={{
+      }}>
+        {/* Logo */}
+        <div style={{
           padding: collapsed ? "20px 12px" : "20px 20px",
           display: "flex",
           alignItems: "center",
           gap: 12,
           borderBottom: "1px solid var(--md-outline-variant)",
           minHeight: 72,
-        }}
-      >
-        <img
-          src={theme === "dark" ? "/logo-dark.svg" : "/logo.svg"}
-          alt="Wander Video Noter"
-          style={{
-            width: 36,
-            height: 44,
-            flexShrink: 0,
-          }}
-        />
-        {!collapsed && (
-          <div style={{ overflow: "hidden" }}>
-            <div
-              style={{
-                fontFamily: "var(--font-heading)",
-                fontWeight: 700,
-                fontSize: 15,
-                color: "var(--md-on-surface)",
-                whiteSpace: "nowrap",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Wander Video
+        }}>
+          <img
+            src={theme === "dark" ? "/logo-dark.svg" : "/logo.svg"}
+            alt="Wander Video Noter"
+            style={{ width: 36, height: 44, flexShrink: 0 }}
+          />
+          {!collapsed && (
+            <div style={{ overflow: "hidden" }}>
+              <div style={{
+                fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 15,
+                color: "var(--md-on-surface)", whiteSpace: "nowrap", letterSpacing: "-0.02em",
+              }}>Wander Video</div>
+              <div style={{
+                fontFamily: "var(--font-heading)", fontSize: 14, color: "var(--md-primary)",
+                letterSpacing: "0.03em", textTransform: "uppercase", fontWeight: 700, fontStyle: "italic",
+              }}>Noter</div>
             </div>
-            <div
-              style={{
-                fontFamily: "var(--font-heading)",
-                fontSize: 14,
-                color: "var(--md-primary)",
-                letterSpacing: "0.03em",
-                textTransform: "uppercase",
-                fontWeight: 700,
-                fontStyle: "italic",
-              }}
-            >
-              Noter
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Nav items */}
-      <div style={{ padding: "12px 8px", flex: 1 }}>
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item);
-          return (
-            <Link
-              key={item.id}
-              href={item.href}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
+        {/* Nav items */}
+        <div style={{ padding: "12px 8px", flex: 1 }}>
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(item);
+            return (
+              <Link key={item.id} href={item.href} style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 12,
                 padding: collapsed ? "12px 0" : "12px 16px",
                 justifyContent: collapsed ? "center" : "flex-start",
                 background: active ? "var(--md-secondary-container)" : "transparent",
-                color: active
-                  ? "var(--md-on-secondary-container)"
-                  : "var(--md-on-surface-variant)",
-                border: "none",
-                borderRadius: 28,
-                cursor: "pointer",
-                fontFamily: "var(--font-body)",
-                fontSize: 14,
-                fontWeight: active ? 600 : 400,
-                marginBottom: 4,
-                transition: "all 0.15s ease",
-                position: "relative",
-                overflow: "hidden",
-                textDecoration: "none",
+                color: active ? "var(--md-on-secondary-container)" : "var(--md-on-surface-variant)",
+                border: "none", borderRadius: 28, cursor: "pointer",
+                fontFamily: "var(--font-body)", fontSize: 14,
+                fontWeight: active ? 600 : 400, marginBottom: 4,
+                transition: "all 0.15s ease", textDecoration: "none",
               }}
-              onMouseEnter={(e) => {
-                if (!active)
-                  (e.currentTarget as HTMLAnchorElement).style.background =
-                    "var(--md-surface-container-high)";
-              }}
-              onMouseLeave={(e) => {
-                if (!active)
-                  (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
-              }}
-            >
+                onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--md-surface-container-high)"; }}
+                onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
+              >
+                <Icon name={item.icon} size={22} />
+                {!collapsed && <span style={{ whiteSpace: "nowrap" }}>{item.label}</span>}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Bottom controls */}
+        <div style={{ padding: 12, borderTop: "1px solid var(--md-outline-variant)", display: "flex", flexDirection: "column", gap: 4 }}>
+          <button onClick={toggleTheme} style={{
+            width: "100%", display: "flex", alignItems: "center",
+            justifyContent: collapsed ? "center" : "flex-start",
+            gap: 10, padding: collapsed ? "10px 0" : "10px 16px",
+            background: "transparent", border: "none", color: "var(--md-on-surface-variant)",
+            cursor: "pointer", borderRadius: 28, fontSize: 13, fontFamily: "var(--font-body)",
+          }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--md-surface-container-high)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <Icon name={theme === "dark" ? "light_mode" : "dark_mode"} size={20} />
+            {!collapsed && <span style={{ whiteSpace: "nowrap" }}>{theme === "dark" ? "Light mode" : "Dark mode"}</span>}
+          </button>
+          <button onClick={onToggle} style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 8, padding: "10px 0", background: "transparent", border: "none",
+            color: "var(--md-on-surface-variant)", cursor: "pointer", borderRadius: 12,
+          }}>
+            <Icon name={collapsed ? "chevron_right" : "chevron_left"} size={20} />
+          </button>
+        </div>
+      </nav>
+
+      {/* ── Mobile top bar ── */}
+      <div className="mobile-topbar" style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+        height: 56, display: "flex", alignItems: "center", gap: 10,
+        padding: "0 16px",
+        background: "var(--md-surface-container)",
+        borderBottom: "1px solid var(--md-outline-variant)",
+      }}>
+        <img
+          src={theme === "dark" ? "/logo-dark.svg" : "/logo.svg"}
+          alt="Wander" style={{ width: 24, height: 30 }}
+        />
+        <span style={{
+          fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 14,
+          color: "var(--md-on-surface)", flex: 1,
+        }}>
+          Wander <span style={{ color: "var(--md-primary)", fontStyle: "italic" }}>NOTER</span>
+        </span>
+        <button onClick={toggleTheme} style={{
+          background: "transparent", border: "none", color: "var(--md-on-surface-variant)",
+          cursor: "pointer", padding: 8, borderRadius: 20,
+        }}>
+          <Icon name={theme === "dark" ? "light_mode" : "dark_mode"} size={22} />
+        </button>
+      </div>
+
+      {/* ── Mobile bottom nav ── */}
+      <nav className="mobile-bottomnav" style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100,
+        height: 64, display: "flex", alignItems: "center", justifyContent: "space-around",
+        background: "var(--md-surface-container)",
+        borderTop: "1px solid var(--md-outline-variant)",
+      }}>
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(item);
+          return (
+            <Link key={item.id} href={item.href} style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+              textDecoration: "none", padding: "6px 12px", borderRadius: 16,
+              background: active ? "var(--md-secondary-container)" : "transparent",
+              color: active ? "var(--md-on-secondary-container)" : "var(--md-on-surface-variant)",
+              transition: "all 0.15s ease",
+            }}>
               <Icon name={item.icon} size={22} />
-              {!collapsed && <span style={{ whiteSpace: "nowrap" }}>{item.label}</span>}
+              <span style={{
+                fontSize: 10, fontWeight: active ? 600 : 400,
+                fontFamily: "var(--font-body)",
+              }}>{item.label}</span>
             </Link>
           );
         })}
-      </div>
+      </nav>
 
-      {/* Theme toggle + Collapse toggle */}
-      <div
-        style={{
-          padding: 12,
-          borderTop: "1px solid var(--md-outline-variant)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-        }}
-      >
-        <button
-          onClick={toggleTheme}
-          style={{
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: collapsed ? "center" : "flex-start",
-            gap: 10,
-            padding: collapsed ? "10px 0" : "10px 16px",
-            background: "transparent",
-            border: "none",
-            color: "var(--md-on-surface-variant)",
-            cursor: "pointer",
-            borderRadius: 28,
-            fontSize: 13,
-            fontFamily: "var(--font-body)",
-            transition: "all 0.15s ease",
-          }}
-          onMouseEnter={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background =
-              "var(--md-surface-container-high)")
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background = "transparent")
-          }
-        >
-          <Icon name={theme === "dark" ? "light_mode" : "dark_mode"} size={20} />
-          {!collapsed && (
-            <span style={{ whiteSpace: "nowrap" }}>
-              {theme === "dark" ? "Light mode" : "Dark mode"}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={onToggle}
-          style={{
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            padding: "10px 0",
-            background: "transparent",
-            border: "none",
-            color: "var(--md-on-surface-variant)",
-            cursor: "pointer",
-            borderRadius: 12,
-            fontSize: 13,
-            fontFamily: "var(--font-body)",
-          }}
-        >
-          <Icon name={collapsed ? "chevron_right" : "chevron_left"} size={20} />
-        </button>
-      </div>
-    </nav>
+      <style>{`
+        .mobile-topbar { display: none !important; }
+        .mobile-bottomnav { display: none !important; }
+        @media (max-width: 768px) {
+          .sidebar-desktop { display: none !important; }
+          .mobile-topbar { display: flex !important; }
+          .mobile-bottomnav { display: flex !important; }
+        }
+      `}</style>
+    </>
   );
 }
