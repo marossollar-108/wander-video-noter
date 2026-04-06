@@ -95,7 +95,7 @@ export function startPipeline(noteId: string): void {
 
   // Spawn the Python process
   const currentPath = process.env.PATH || "";
-  const env = { ...process.env, KMP_DUPLICATE_LIB_OK: "TRUE", ANTHROPIC_API_KEY: apiKey || process.env.ANTHROPIC_API_KEY || "", PATH: `/root/.deno/bin:${currentPath}` };
+  const env = { ...process.env, KMP_DUPLICATE_LIB_OK: "TRUE", PYTHONWARNINGS: "ignore", ANTHROPIC_API_KEY: apiKey || process.env.ANTHROPIC_API_KEY || "", PATH: `/root/.deno/bin:${currentPath}` };
 
   const proc = spawn("python3", args, {
     env,
@@ -191,11 +191,28 @@ export function startPipeline(noteId: string): void {
         });
       }
     } else {
-      const stderr = Buffer.concat(stderrChunks).toString("utf-8").trim();
-      db.updateNote(noteId, {
-        status: "error",
-        error_msg: stderr || `Process exited with code ${code}`,
-      });
+      let stderr = Buffer.concat(stderrChunks).toString("utf-8").trim();
+      // Filter out known harmless warnings
+      const lines = stderr.split("\n").filter((line) =>
+        !line.includes("FP16 is not supported on CPU") &&
+        !line.includes("UserWarning") &&
+        !line.includes("warnings.warn") &&
+        line.trim() !== ""
+      );
+      const filteredStderr = lines.join("\n").trim();
+
+      if (!filteredStderr && (code === null || code === 137 || code === 9)) {
+        // Process was killed (OOM or signal) — no useful stderr
+        db.updateNote(noteId, {
+          status: "error",
+          error_msg: `Proces bol ukonceny (kod ${code}). Server pravdepodobne nema dostatok pamate pre toto video. Skuste mensi Whisper model (tiny/base).`,
+        });
+      } else {
+        db.updateNote(noteId, {
+          status: "error",
+          error_msg: filteredStderr || `Proces skoncil s kodom ${code}`,
+        });
+      }
     }
   });
 
