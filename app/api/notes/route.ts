@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       frameInterval,
       hashThreshold,
       skipClassify,
+      outputLanguage,
     } = body as {
       url?: string;
       filePath?: string;
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       frameInterval?: number;
       hashThreshold?: number;
       skipClassify?: boolean;
+      outputLanguage?: string;
     };
 
     if (!url && !filePath) {
@@ -77,6 +79,7 @@ export async function POST(request: NextRequest) {
       frame_interval: frameInterval,
       hash_threshold: hashThreshold,
       skip_classify: skipClassify,
+      output_language: outputLanguage,
     });
 
     // Fire-and-forget pipeline start

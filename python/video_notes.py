@@ -831,6 +831,7 @@ def run_pipeline(
     skip_classification: bool = False,
     progress_file: Optional[str] = None,
     json_output: bool = False,
+    output_language: Optional[str] = None,
 ):
     _check_deps()
 
@@ -884,7 +885,7 @@ def run_pipeline(
             transcript=transcript,
             frames=useful_frames,
             output_dir=output_dir,
-            language=transcript["language"],
+            language=output_language or transcript["language"],
             source_url=_source_url,
         )
 
@@ -894,7 +895,7 @@ def run_pipeline(
             duration_seconds = int(segments[-1]["end"]) if segments else 0
             result_data = {
                 "title": title,
-                "language": transcript.get("language", "unknown"),
+                "language": output_language or transcript.get("language", "unknown"),
                 "duration_seconds": duration_seconds,
                 "summary": notes.get("summary", ""),
                 "sections": [
@@ -979,6 +980,10 @@ Examples:
         "--json-output", action="store_true",
         help="Write a result.json file in the output directory with structured data"
     )
+    parser.add_argument(
+        "--output-language",
+        help="Override output language for notes (e.g. sk, en, cs). Default: auto-detect from video."
+    )
 
     args = parser.parse_args()
 
@@ -997,6 +1002,7 @@ Examples:
         skip_classification=args.skip_classification,
         progress_file=args.json_progress,
         json_output=args.json_output,
+        output_language=args.output_language,
     )
 
 

@@ -7,7 +7,14 @@ import Icon from "@/components/Icon";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function SettingsPage() {
-  const { data, mutate } = useSWR<{ settings: Record<string, string> }>("/api/settings", fetcher);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const { data, mutate } = useSWR<{ settings: Record<string, string> }>(
+    authenticated ? "/api/settings" : null, fetcher
+  );
 
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -18,6 +25,28 @@ export default function SettingsPage() {
       setSettings(data.settings);
     }
   }, [data]);
+
+  const handleAuth = async () => {
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/settings/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        setAuthenticated(true);
+      } else {
+        const data = await res.json();
+        setAuthError(data.error || "Nespravne heslo");
+      }
+    } catch {
+      setAuthError("Chyba pripojenia");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const update = (key: string, value: string) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -79,6 +108,51 @@ export default function SettingsPage() {
     alignItems: "center",
     gap: 8,
   };
+
+  if (!authenticated) {
+    return (
+      <div style={{ maxWidth: 400, margin: "80px auto", textAlign: "center" }}>
+        <Icon name="lock" size={48} style={{ color: "var(--md-on-surface-variant)", marginBottom: 16 }} />
+        <h2 style={{
+          fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 700,
+          color: "var(--md-on-surface)", marginBottom: 8,
+        }}>Nastavenia</h2>
+        <p style={{ color: "var(--md-on-surface-variant)", fontSize: 14, marginBottom: 24 }}>
+          Zadajte heslo pre pristup k nastaveniam
+        </p>
+        <form onSubmit={(e) => { e.preventDefault(); handleAuth(); }}>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Heslo..."
+            autoFocus
+            style={{
+              width: "100%", padding: "12px 16px",
+              background: "var(--md-surface-container)",
+              border: `1px solid ${authError ? "var(--md-primary)" : "var(--md-outline-variant)"}`,
+              borderRadius: 12, color: "var(--md-on-surface)",
+              fontFamily: "var(--font-mono)", fontSize: 14,
+              outline: "none", marginBottom: 12, boxSizing: "border-box",
+            }}
+          />
+          {authError && (
+            <p style={{ color: "var(--md-primary)", fontSize: 13, marginBottom: 12 }}>{authError}</p>
+          )}
+          <button type="submit" disabled={authLoading || !password} style={{
+            width: "100%", padding: "12px 24px",
+            background: !password ? "var(--md-outline-variant)" : "var(--md-primary)",
+            color: !password ? "var(--md-on-surface-variant)" : "var(--md-on-primary)",
+            border: "none", borderRadius: 12,
+            fontFamily: "var(--font-heading)", fontSize: 14, fontWeight: 600,
+            cursor: !password ? "not-allowed" : "pointer",
+          }}>
+            {authLoading ? "Overujem..." : "Prihlasit sa"}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 640 }}>

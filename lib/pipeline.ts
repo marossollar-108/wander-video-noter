@@ -87,6 +87,12 @@ export function startPipeline(noteId: string): void {
     args.push("--skip-classification");
   }
 
+  // Output language override
+  const outputLang = (note as unknown as Record<string, unknown>).output_language as string | null;
+  if (outputLang) {
+    args.push("--output-language", outputLang);
+  }
+
   // Spawn the Python process
   const currentPath = process.env.PATH || "";
   const env = { ...process.env, KMP_DUPLICATE_LIB_OK: "TRUE", ANTHROPIC_API_KEY: apiKey || process.env.ANTHROPIC_API_KEY || "", PATH: `/root/.deno/bin:${currentPath}` };

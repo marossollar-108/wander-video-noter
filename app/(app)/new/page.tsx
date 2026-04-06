@@ -22,6 +22,7 @@ export default function NewVideoPage() {
   const [whisperModel, setWhisperModel] = useState("base");
   const [frameInterval, setFrameInterval] = useState("3");
   const [skipClassify, setSkipClassify] = useState(false);
+  const [outputLanguage, setOutputLanguage] = useState("auto");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
@@ -87,6 +88,7 @@ export default function NewVideoPage() {
           whisperModel,
           frameInterval: Number(frameInterval),
           skipClassify,
+          outputLanguage: outputLanguage !== "auto" ? outputLanguage : undefined,
         }),
       });
       router.push("/queue");
@@ -385,6 +387,40 @@ export default function NewVideoPage() {
           <Icon name="tune" size={18} />
           Nastavenia spracovania
         </h3>
+
+        {/* Output language */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{
+            display: "block", fontSize: 12, fontWeight: 500,
+            color: "var(--md-on-surface-variant)", marginBottom: 6,
+          }}>
+            Jazyk poznamok
+          </label>
+          <select
+            value={outputLanguage}
+            onChange={(e) => setOutputLanguage(e.target.value)}
+            style={{
+              width: "100%", padding: "10px 12px",
+              background: "var(--md-surface-container-high)",
+              border: "1px solid var(--md-outline-variant)",
+              borderRadius: 8, color: "var(--md-on-surface)",
+              fontFamily: "var(--font-mono)", fontSize: 13,
+              outline: "none", cursor: "pointer", appearance: "none",
+            }}
+          >
+            <option value="auto">Automaticky (jazyk videa)</option>
+            <option value="sk">Slovenčina</option>
+            <option value="cs">Čeština</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="hu">Magyar</option>
+            <option value="pl">Polski</option>
+            <option value="fr">Français</option>
+            <option value="es">Español</option>
+            <option value="it">Italiano</option>
+            <option value="uk">Українська</option>
+          </select>
+        </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           {/* Whisper model */}

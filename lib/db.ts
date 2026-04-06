@@ -42,6 +42,7 @@ function initSchema(db: Database.Database) {
       output_dir TEXT,
       html_path TEXT,
       notes_json TEXT,
+      output_language TEXT,
       published INTEGER DEFAULT 0,
       published_at TEXT
     );
@@ -83,11 +84,10 @@ function initSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_notes_published ON notes(published);
   `);
 
-  // Migration: add published columns if missing
-  try {
-    db.exec(`ALTER TABLE notes ADD COLUMN published INTEGER DEFAULT 0`);
-    db.exec(`ALTER TABLE notes ADD COLUMN published_at TEXT`);
-  } catch { /* columns already exist */ }
+  // Migrations
+  try { db.exec(`ALTER TABLE notes ADD COLUMN published INTEGER DEFAULT 0`); } catch { /* exists */ }
+  try { db.exec(`ALTER TABLE notes ADD COLUMN published_at TEXT`); } catch { /* exists */ }
+  try { db.exec(`ALTER TABLE notes ADD COLUMN output_language TEXT`); } catch { /* exists */ }
 }
 
 // ─── Row → Type helpers ─────────────────────────────────────────────────────
@@ -131,11 +131,12 @@ export function createNote(params: {
   frame_interval?: number;
   hash_threshold?: number;
   skip_classify?: boolean;
+  output_language?: string;
 }): Note {
   const db = getDb();
   db.prepare(`
-    INSERT INTO notes (id, title, source, url, original_path, whisper_model, frame_interval, hash_threshold, skip_classify)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO notes (id, title, source, url, original_path, whisper_model, frame_interval, hash_threshold, skip_classify, output_language)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     params.id,
     params.title,
@@ -145,7 +146,8 @@ export function createNote(params: {
     params.whisper_model ?? "base",
     params.frame_interval ?? 3.0,
     params.hash_threshold ?? 8,
-    params.skip_classify ? 1 : 0
+    params.skip_classify ? 1 : 0,
+    params.output_language ?? null
   );
   return getNoteById(params.id)!;
 }
