@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Wander Video Noter — Setup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #0f0f10;
+      color: #e7e7e9;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      box-sizing: border-box;
+      -webkit-app-region: drag;
+    }
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 16px 0 4px;
+      letter-spacing: -0.01em;
+    }
+    .sub {
+      color: #9d9da3;
+      font-size: 13px;
+      margin-bottom: 24px;
+      text-align: center;
+      max-width: 380px;
+      line-height: 1.5;
+    }
+    .logo {
+      width: 64px; height: 64px;
+      background: #000;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo svg { width: 38px; height: 46px; }
+    .progress-wrap {
+      width: 100%;
+      max-width: 420px;
+    }
+    .bar {
+      height: 4px;
+      background: #2a2a2d;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .bar-fill {
+      height: 100%;
+      background: #EB002F;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+    .status {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      color: #9d9da3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .actions {
+      margin-top: 24px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      max-width: 420px;
+      -webkit-app-region: no-drag;
+    }
+    button {
+      padding: 10px 16px;
+      background: #EB002F;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    button.secondary {
+      background: #2a2a2d;
+      color: #e7e7e9;
+    }
+    pre.cmd {
+      background: #1a1a1c;
+      border: 1px solid #2a2a2d;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      color: #e7e7e9;
+      user-select: text;
+      -webkit-user-select: text;
+      margin: 0;
+      overflow-x: auto;
+    }
+    .error {
+      color: #ff6b6b;
+      font-size: 12px;
+      max-width: 420px;
+      margin-bottom: 12px;
+      text-align: center;
+      -webkit-user-select: text;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <svg viewBox="0 0 85 103" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M72.0453 12.399C55.5669 -4.13299 28.8573 -4.13299 12.3588 12.399C-4.11959 28.9501 -4.11959 55.747 12.3588 72.278L42.1288 102.146C42.1698 102.187 42.2362 102.187 42.2772 102.146L72.0453 72.278C88.5235 55.747 88.5235 28.9501 72.0453 12.399ZM63.3111 63.5147C51.6532 75.2078 32.7667 75.2078 21.115 63.5147C9.45959 51.8225 9.45959 32.8727 21.115 21.1816C32.7667 9.49026 51.6532 9.49026 63.3111 21.1816C74.9627 32.8727 74.9627 51.8225 63.3111 63.5147Z" fill="#EB002F"/>
+      <path d="M35 28L57 42.5L35 57V28Z" fill="white"/>
+    </svg>
+  </div>
+  <h1>Príprava prostredia</h1>
+  <div class="sub" id="sub">Prvé spustenie — inštalujem Python prostredie pre video pipeline. Trvá to ~1-2 minúty.</div>
+
+  <div class="progress-wrap">
+    <div class="bar"><div class="bar-fill" id="fill"></div></div>
+    <div class="status" id="status">Pripravujem...</div>
+  </div>
+
+  <div class="error" id="error"></div>
+  <div class="actions" id="actions"></div>
+
+  <script>
+    const { ipcRenderer, shell } = require("electron");
+    const fill = document.getElementById("fill");
+    const status = document.getElementById("status");
+    const sub = document.getElementById("sub");
+    const errorEl = document.getElementById("error");
+    const actions = document.getElementById("actions");
+
+    ipcRenderer.on("setup:progress", (_e, msg) => {
+      status.textContent = msg.message || "";
+      if (typeof msg.percent === "number") fill.style.width = msg.percent + "%";
+    });
+
+    ipcRenderer.on("setup:error", (_e, payload) => {
+      sub.textContent = "Chýbajú systémové závislosti";
+      errorEl.textContent = payload.message || "";
+      actions.style.display = "flex";
+
+      if (payload.kind === "missing_deps") {
+        const cmd = document.createElement("pre");
+        cmd.className = "cmd";
+        cmd.textContent = "brew install python3 ffmpeg";
+        actions.appendChild(cmd);
+
+        const copyBtn = document.createElement("button");
+        copyBtn.textContent = "Skopírovať príkaz";
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText("brew install python3 ffmpeg");
+          copyBtn.textContent = "Skopírované ✓";
+        };
+        actions.appendChild(copyBtn);
+
+        const retryBtn = document.createElement("button");
+        retryBtn.className = "secondary";
+        retryBtn.textContent = "Skúsiť znova";
+        retryBtn.onclick = () => ipcRenderer.send("setup:retry");
+        actions.appendChild(retryBtn);
+      } else {
+        const retryBtn = document.createElement("button");
+        retryBtn.textContent = "Skúsiť znova";
+        retryBtn.onclick = () => ipcRenderer.send("setup:retry");
+        actions.appendChild(retryBtn);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -39,6 +39,71 @@ export default function SettingsPage() {
   const [updating, setUpdating] = useState(false);
   const [updateResult, setUpdateResult] = useState<UpdateResult | null>(null);
 
+  // Packaged Electron mode — uses electron-updater via IPC
+  type ElectronUpdater = {
+    isElectron: true;
+    appVersion: () => Promise<string>;
+    updater: {
+      check: () => Promise<{ ok: boolean; available?: boolean; version?: string; message?: string }>;
+      download: () => Promise<{ ok: boolean; message?: string }>;
+      install: () => Promise<{ ok: boolean }>;
+      onEvent: (cb: (e: UpdaterEvent) => void) => () => void;
+    };
+  };
+  type UpdaterEvent =
+    | { type: "checking" }
+    | { type: "available"; version: string; releaseNotes?: string }
+    | { type: "not-available"; version: string }
+    | { type: "progress"; percent: number; bytesPerSecond: number; transferred: number; total: number }
+    | { type: "downloaded"; version: string }
+    | { type: "error"; message: string };
+
+  const isElectron = typeof window !== "undefined" && (window as unknown as { electronAPI?: ElectronUpdater }).electronAPI?.isElectron === true;
+  const electronAPI = isElectron ? (window as unknown as { electronAPI: ElectronUpdater }).electronAPI : null;
+
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [updaterState, setUpdaterState] = useState<
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "available"; version: string }
+    | { kind: "not-available"; version: string }
+    | { kind: "downloading"; percent: number; speedKbps: number }
+    | { kind: "downloaded"; version: string }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+
+  useEffect(() => {
+    if (!electronAPI || !authenticated) return;
+    electronAPI.appVersion().then(setAppVersion);
+    const off = electronAPI.updater.onEvent((e) => {
+      if (e.type === "checking") setUpdaterState({ kind: "checking" });
+      else if (e.type === "available") setUpdaterState({ kind: "available", version: e.version });
+      else if (e.type === "not-available") setUpdaterState({ kind: "not-available", version: e.version });
+      else if (e.type === "progress") setUpdaterState({ kind: "downloading", percent: Math.round(e.percent), speedKbps: Math.round(e.bytesPerSecond / 1024) });
+      else if (e.type === "downloaded") setUpdaterState({ kind: "downloaded", version: e.version });
+      else if (e.type === "error") setUpdaterState({ kind: "error", message: e.message });
+    });
+    return off;
+  }, [electronAPI, authenticated]);
+
+  const handleElectronCheck = async () => {
+    if (!electronAPI) return;
+    const res = await electronAPI.updater.check();
+    if (!res.ok) setUpdaterState({ kind: "error", message: res.message || "Check failed" });
+  };
+
+  const handleElectronDownload = async () => {
+    if (!electronAPI) return;
+    setUpdaterState({ kind: "downloading", percent: 0, speedKbps: 0 });
+    const res = await electronAPI.updater.download();
+    if (!res.ok) setUpdaterState({ kind: "error", message: res.message || "Download failed" });
+  };
+
+  const handleElectronInstall = async () => {
+    if (!electronAPI) return;
+    await electronAPI.updater.install();
+  };
+
   const handleUpdate = async (allowDirty = false) => {
     setUpdating(true);
     setUpdateResult(null);
@@ -471,116 +536,291 @@ export default function SettingsPage() {
           Aktualizácie
         </h3>
 
-        {versionData && (
-          <div style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 12,
-            color: "var(--md-on-surface-variant)",
-            marginBottom: 16,
-            padding: "10px 12px",
-            background: "var(--md-surface-container-high)",
-            borderRadius: 8,
-          }}>
-            <div>branch: <strong style={{ color: "var(--md-on-surface)" }}>{versionData.branch}</strong></div>
-            <div>commit: <strong style={{ color: "var(--md-on-surface)" }}>{versionData.commit}</strong> — {versionData.subject}</div>
-            <div>{new Date(versionData.date).toLocaleString("sk-SK")}</div>
-          </div>
-        )}
-
-        <button
-          onClick={() => handleUpdate(false)}
-          disabled={updating}
-          style={{
-            width: "100%",
-            padding: "12px 20px",
-            background: updating ? "var(--md-outline-variant)" : "var(--md-surface-container-high)",
-            color: updating ? "var(--md-on-surface-variant)" : "var(--md-on-surface)",
-            border: "1px solid var(--md-outline-variant)",
-            borderRadius: 12,
-            fontFamily: "var(--font-heading)",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: updating ? "not-allowed" : "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          {updating ? (
-            <>
-              <span style={{
-                width: 16, height: 16,
-                border: "2px solid rgba(255,255,255,0.3)",
-                borderTopColor: "var(--md-on-surface)",
-                borderRadius: "50%",
-                animation: "spin 0.8s linear infinite",
-                display: "inline-block",
-              }} />
-              Aktualizujem...
-            </>
-          ) : (
-            <>
-              <Icon name="cloud_download" size={18} />
-              Skontrolovať aktualizácie
-            </>
-          )}
-        </button>
-
-        {updateResult && (
-          <div style={{
-            marginTop: 12,
-            padding: "12px 14px",
-            background: updateResult.ok
-              ? "rgba(16, 185, 129, 0.08)"
-              : "rgba(239, 68, 68, 0.08)",
-            border: `1px solid ${updateResult.ok ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-            borderRadius: 10,
-            fontSize: 13,
-            color: "var(--md-on-surface)",
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name={updateResult.ok ? "check_circle" : "error"} size={16} />
-              {updateResult.message}
-            </div>
-            {updateResult.incoming && updateResult.incoming.length > 0 && (
-              <ul style={{
+        {isElectron ? (
+          <>
+            {appVersion && (
+              <div style={{
                 fontFamily: "var(--font-mono)",
-                fontSize: 11,
+                fontSize: 12,
                 color: "var(--md-on-surface-variant)",
-                margin: "8px 0 0 0",
-                paddingLeft: 18,
+                marginBottom: 16,
+                padding: "10px 12px",
+                background: "var(--md-surface-container-high)",
+                borderRadius: 8,
               }}>
-                {updateResult.incoming.map((line, i) => (
-                  <li key={i}>{line}</li>
-                ))}
-              </ul>
+                <div>aktuálna verzia: <strong style={{ color: "var(--md-on-surface)" }}>v{appVersion}</strong></div>
+              </div>
             )}
-            {updateResult.reason === "dirty" && (
+
+            {/* Primary action by state */}
+            {(updaterState.kind === "idle" || updaterState.kind === "not-available" || updaterState.kind === "error") && (
               <button
-                onClick={() => handleUpdate(true)}
-                disabled={updating}
+                onClick={handleElectronCheck}
                 style={{
-                  marginTop: 10,
-                  padding: "6px 12px",
-                  background: "transparent",
-                  color: "var(--md-primary)",
-                  border: "1px solid var(--md-primary)",
-                  borderRadius: 8,
-                  fontSize: 12,
+                  width: "100%",
+                  padding: "12px 20px",
+                  background: "var(--md-surface-container-high)",
+                  color: "var(--md-on-surface)",
+                  border: "1px solid var(--md-outline-variant)",
+                  borderRadius: 12,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 14,
                   fontWeight: 600,
                   cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
                 }}
               >
-                Pokračovať aj tak (riziko: prepíše lokálne zmeny)
+                <Icon name="cloud_download" size={18} />
+                Skontrolovať aktualizácie
               </button>
             )}
-          </div>
-        )}
 
-        <p style={{ fontSize: 11, color: "var(--md-on-surface-variant)", marginTop: 10, marginBottom: 0 }}>
-          Stiahne najnovšiu verziu kódu z GitHubu (git pull). Ak sa zmenia npm deps alebo electron/main.js, treba reštartovať appku.
-        </p>
+            {updaterState.kind === "checking" && (
+              <div style={{
+                width: "100%",
+                padding: "12px 20px",
+                background: "var(--md-surface-container-high)",
+                border: "1px solid var(--md-outline-variant)",
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                color: "var(--md-on-surface)",
+              }}>
+                <span style={{
+                  width: 16, height: 16,
+                  border: "2px solid rgba(255,255,255,0.3)",
+                  borderTopColor: "var(--md-on-surface)",
+                  borderRadius: "50%",
+                  animation: "spin 0.8s linear infinite",
+                  display: "inline-block",
+                }} />
+                Kontrolujem na GitHub Releases...
+              </div>
+            )}
+
+            {updaterState.kind === "available" && (
+              <button
+                onClick={handleElectronDownload}
+                style={{
+                  width: "100%",
+                  padding: "12px 20px",
+                  background: "var(--md-primary)",
+                  color: "var(--md-on-primary)",
+                  border: "none",
+                  borderRadius: 12,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                <Icon name="download" size={18} />
+                Stiahnuť v{updaterState.version}
+              </button>
+            )}
+
+            {updaterState.kind === "downloading" && (
+              <div>
+                <div style={{
+                  height: 6,
+                  background: "var(--md-surface-container-high)",
+                  borderRadius: 6,
+                  overflow: "hidden",
+                  marginBottom: 8,
+                }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${updaterState.percent}%`,
+                    background: "var(--md-primary)",
+                    transition: "width 0.25s ease",
+                  }} />
+                </div>
+                <div style={{ fontSize: 12, color: "var(--md-on-surface-variant)", fontFamily: "var(--font-mono)", display: "flex", justifyContent: "space-between" }}>
+                  <span>Sťahujem {updaterState.percent}%</span>
+                  <span>{updaterState.speedKbps} KB/s</span>
+                </div>
+              </div>
+            )}
+
+            {updaterState.kind === "downloaded" && (
+              <button
+                onClick={handleElectronInstall}
+                style={{
+                  width: "100%",
+                  padding: "12px 20px",
+                  background: "var(--md-primary)",
+                  color: "var(--md-on-primary)",
+                  border: "none",
+                  borderRadius: 12,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                <Icon name="restart_alt" size={18} />
+                Reštartovať a nainštalovať v{updaterState.version}
+              </button>
+            )}
+
+            {/* Status panel */}
+            {updaterState.kind === "not-available" && (
+              <div style={{
+                marginTop: 12,
+                padding: "10px 12px",
+                background: "rgba(16, 185, 129, 0.08)",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
+                borderRadius: 10,
+                fontSize: 13,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}>
+                <Icon name="check_circle" size={16} />
+                Si na najnovšej verzii.
+              </div>
+            )}
+
+            {updaterState.kind === "error" && (
+              <div style={{
+                marginTop: 12,
+                padding: "10px 12px",
+                background: "rgba(239, 68, 68, 0.08)",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                borderRadius: 10,
+                fontSize: 13,
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="error" size={16} />
+                  Chyba pri aktualizácii
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--md-on-surface-variant)" }}>
+                  {updaterState.message}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {versionData && (
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 12,
+                color: "var(--md-on-surface-variant)",
+                marginBottom: 16,
+                padding: "10px 12px",
+                background: "var(--md-surface-container-high)",
+                borderRadius: 8,
+              }}>
+                <div>branch: <strong style={{ color: "var(--md-on-surface)" }}>{versionData.branch}</strong></div>
+                <div>commit: <strong style={{ color: "var(--md-on-surface)" }}>{versionData.commit}</strong> — {versionData.subject}</div>
+                <div>{new Date(versionData.date).toLocaleString("sk-SK")}</div>
+              </div>
+            )}
+
+            <button
+              onClick={() => handleUpdate(false)}
+              disabled={updating}
+              style={{
+                width: "100%",
+                padding: "12px 20px",
+                background: updating ? "var(--md-outline-variant)" : "var(--md-surface-container-high)",
+                color: updating ? "var(--md-on-surface-variant)" : "var(--md-on-surface)",
+                border: "1px solid var(--md-outline-variant)",
+                borderRadius: 12,
+                fontFamily: "var(--font-heading)",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: updating ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              {updating ? (
+                <>
+                  <span style={{
+                    width: 16, height: 16,
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "var(--md-on-surface)",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                    display: "inline-block",
+                  }} />
+                  Aktualizujem...
+                </>
+              ) : (
+                <>
+                  <Icon name="cloud_download" size={18} />
+                  Skontrolovať aktualizácie (git pull)
+                </>
+              )}
+            </button>
+
+            {updateResult && (
+              <div style={{
+                marginTop: 12,
+                padding: "12px 14px",
+                background: updateResult.ok ? "rgba(16, 185, 129, 0.08)" : "rgba(239, 68, 68, 0.08)",
+                border: `1px solid ${updateResult.ok ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                borderRadius: 10,
+                fontSize: 13,
+                color: "var(--md-on-surface)",
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Icon name={updateResult.ok ? "check_circle" : "error"} size={16} />
+                  {updateResult.message}
+                </div>
+                {updateResult.incoming && updateResult.incoming.length > 0 && (
+                  <ul style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    color: "var(--md-on-surface-variant)",
+                    margin: "8px 0 0 0",
+                    paddingLeft: 18,
+                  }}>
+                    {updateResult.incoming.map((line, i) => <li key={i}>{line}</li>)}
+                  </ul>
+                )}
+                {updateResult.reason === "dirty" && (
+                  <button
+                    onClick={() => handleUpdate(true)}
+                    disabled={updating}
+                    style={{
+                      marginTop: 10,
+                      padding: "6px 12px",
+                      background: "transparent",
+                      color: "var(--md-primary)",
+                      border: "1px solid var(--md-primary)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Pokračovať aj tak (riziko: prepíše lokálne zmeny)
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Save button */}

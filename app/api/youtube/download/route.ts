@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
 import { spawn } from "child_process";
 import { mkdir } from "fs/promises";
+import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { getUploadsDir, getVenvBin } from "@/lib/paths";
 
 export const runtime = "nodejs";
 
@@ -13,7 +15,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "URL is required" }, { status: 400 });
     }
 
-    const uploadsDir = path.join(process.cwd(), "uploads");
+    const uploadsDir = getUploadsDir();
     await mkdir(uploadsDir, { recursive: true });
 
     const filename = `${uuidv4()}.mp4`;
@@ -32,9 +34,13 @@ export async function POST(request: NextRequest) {
         url,
       ];
 
-      const venvBin = path.join(process.cwd(), ".venv", "bin");
+      const userDataVenvBin = getVenvBin();
+      const projectVenvBin = path.join(process.cwd(), ".venv", "bin");
+      const venvBin = fs.existsSync(userDataVenvBin) ? userDataVenvBin
+        : fs.existsSync(projectVenvBin) ? projectVenvBin : "";
+      const pathPrefix = [venvBin, "/opt/homebrew/bin", "/usr/local/bin"].filter(Boolean).join(":");
       const proc = spawn("yt-dlp", args, {
-        env: { ...process.env, PATH: `${venvBin}:/root/.deno/bin:${currentPath}` },
+        env: { ...process.env, PATH: `${pathPrefix}:${currentPath}` },
         stdio: ["ignore", "pipe", "pipe"],
       });
 

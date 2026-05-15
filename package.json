@@ -8,10 +8,87 @@
     "build": "next build",
     "start": "next start",
     "electron": "electron .",
-    "electron:dev": "concurrently -k -n NEXT,ELECTRON -c blue,magenta \"next dev\" \"wait-on http://localhost:3000 && electron .\""
+    "electron:dev": "concurrently -k -n NEXT,ELECTRON -c blue,magenta \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "dist:mac": "node scripts/with-venv-hidden.js next build && node scripts/prepare-standalone.js && electron-builder --mac --arm64",
+    "release:mac": "node scripts/with-venv-hidden.js next build && node scripts/prepare-standalone.js && electron-builder --mac --arm64 --publish always"
+  },
+  "build": {
+    "appId": "tech.wanderhub.videonoter",
+    "productName": "Wander Video Noter",
+    "asar": true,
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "app/standalone"
+      },
+      {
+        "from": ".next/static",
+        "to": "app/standalone/.next/static"
+      },
+      {
+        "from": "public",
+        "to": "app/standalone/public"
+      },
+      {
+        "from": "python",
+        "to": "app/python",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      }
+    ],
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": "arm64" },
+        { "target": "zip", "arch": "arm64" }
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "darkModeSupport": true,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "identity": null
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "marossollar-108",
+        "repo": "wander-video-noter",
+        "releaseType": "release"
+      }
+    ],
+    "dmg": {
+      "title": "Wander Video Noter",
+      "icon": "build/icon.icns",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
   },
   "dependencies": {
-    "better-sqlite3": "^12.8.0",
+    "better-sqlite3": "^12.10.0",
+    "electron-updater": "^6.8.3",
     "next": "16.2.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -19,13 +96,15 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
     "concurrently": "^9.2.1",
-    "electron": "^42.1.0",
+    "electron": "^35.7.5",
+    "electron-builder": "^26.8.1",
     "typescript": "^5",
     "wait-on": "^9.0.10"
   }

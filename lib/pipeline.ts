@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from "child_process";
 import path from "path";
 import fs from "fs";
 import * as db from "./db";
+import { getNoteDir, getUploadsDir, getVenvPython, getVenvBin, getPipelineScript } from "./paths";
 
 const runningProcesses = new Map<string, ChildProcess>();
 
@@ -46,7 +47,7 @@ export function startPipeline(noteId: string): void {
   }
 
   // Create output directory
-  const outputDir = path.join(process.cwd(), "public", "notes", noteId);
+  const outputDir = getNoteDir(noteId);
   fs.mkdirSync(outputDir, { recursive: true });
 
   const progressFile = path.join(outputDir, ".progress.json");
@@ -73,7 +74,7 @@ export function startPipeline(noteId: string): void {
 
   // Build command arguments
   const args: string[] = [
-    path.join(process.cwd(), "python", "video_notes.py"),
+    getPipelineScript(),
     source,
     "--output", outputDir,
     "--whisper-model", note.whisper_model,
@@ -93,12 +94,24 @@ export function startPipeline(noteId: string): void {
     args.push("--output-language", outputLang);
   }
 
-  // Spawn the Python process — prefer local venv, fallback to system python3
+  // Spawn the Python process — prefer userData venv, then project .venv, then system python3
   const currentPath = process.env.PATH || "";
-  const venvPython = path.join(process.cwd(), ".venv", "bin", "python3");
-  const pythonBin = fs.existsSync(venvPython) ? venvPython : "python3";
-  const venvBin = path.join(process.cwd(), ".venv", "bin");
-  const env = { ...process.env, KMP_DUPLICATE_LIB_OK: "TRUE", PYTHONWARNINGS: "ignore", ANTHROPIC_API_KEY: apiKey || process.env.ANTHROPIC_API_KEY || "", PATH: `${venvBin}:/root/.deno/bin:${currentPath}` };
+  const userDataVenvPython = getVenvPython();
+  const userDataVenvBin = getVenvBin();
+  const projectVenvPython = path.join(process.cwd(), ".venv", "bin", "python3");
+  const projectVenvBin = path.join(process.cwd(), ".venv", "bin");
+
+  let pythonBin = "python3";
+  let venvBin = "";
+  if (fs.existsSync(userDataVenvPython)) {
+    pythonBin = userDataVenvPython;
+    venvBin = userDataVenvBin;
+  } else if (fs.existsSync(projectVenvPython)) {
+    pythonBin = projectVenvPython;
+    venvBin = projectVenvBin;
+  }
+  const pathPrefix = [venvBin, "/opt/homebrew/bin", "/usr/local/bin"].filter(Boolean).join(":");
+  const env = { ...process.env, KMP_DUPLICATE_LIB_OK: "TRUE", PYTHONWARNINGS: "ignore", ANTHROPIC_API_KEY: apiKey || process.env.ANTHROPIC_API_KEY || "", PATH: `${pathPrefix}:${currentPath}` };
 
   const proc = spawn(pythonBin, args, {
     env,
@@ -184,7 +197,7 @@ export function startPipeline(noteId: string): void {
         // Clean up uploaded local video file after processing
         if (note.source === "local" && note.original_path) {
           try {
-            const uploadsDir = path.join(process.cwd(), "uploads");
+            const uploadsDir = getUploadsDir();
             if (note.original_path.startsWith(uploadsDir)) {
               fs.unlinkSync(note.original_path);
             }

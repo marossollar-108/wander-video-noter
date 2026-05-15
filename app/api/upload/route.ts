@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { getUploadsDir } from "@/lib/paths";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes for large uploads
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const uploadsDir = path.join(process.cwd(), "uploads");
+    const uploadsDir = getUploadsDir();
     await mkdir(uploadsDir, { recursive: true });
 
     // Use UUID prefix to avoid collisions

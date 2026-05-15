@@ -392,7 +392,7 @@ export default function NoteDetailPage() {
                     }}
                   >
                     <img
-                      src={`/notes/${note.id}/${img.file_path}`}
+                      src={`/api/files/notes/${note.id}/${img.file_path}`}
                       alt={img.caption || ""}
                       style={{
                         width: "100%",

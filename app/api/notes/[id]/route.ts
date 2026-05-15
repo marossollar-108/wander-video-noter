@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import fs from "fs";
-import path from "path";
 import { getNoteDetail, deleteNote } from "@/lib/db";
+import { getNoteDir } from "@/lib/paths";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -40,7 +40,7 @@ export async function DELETE(
     }
 
     // Remove output directory
-    const outputDir = path.join(process.cwd(), "public", "notes", id);
+    const outputDir = getNoteDir(id);
     if (fs.existsSync(outputDir)) {
       fs.rmSync(outputDir, { recursive: true, force: true });
     }
