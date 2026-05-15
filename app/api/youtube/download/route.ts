@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
         url,
       ];
 
+      const venvBin = path.join(process.cwd(), ".venv", "bin");
       const proc = spawn("yt-dlp", args, {
-        env: { ...process.env, PATH: `/root/.deno/bin:${currentPath}` },
+        env: { ...process.env, PATH: `${venvBin}:/root/.deno/bin:${currentPath}` },
         stdio: ["ignore", "pipe", "pipe"],
       });
 

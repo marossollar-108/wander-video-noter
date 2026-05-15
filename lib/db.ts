@@ -81,13 +81,13 @@ function initSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sections_note ON sections(note_id);
     CREATE INDEX IF NOT EXISTS idx_transcript_note ON transcript_segments(note_id);
-    CREATE INDEX IF NOT EXISTS idx_notes_published ON notes(published);
   `);
 
-  // Migrations
   try { db.exec(`ALTER TABLE notes ADD COLUMN published INTEGER DEFAULT 0`); } catch { /* exists */ }
   try { db.exec(`ALTER TABLE notes ADD COLUMN published_at TEXT`); } catch { /* exists */ }
   try { db.exec(`ALTER TABLE notes ADD COLUMN output_language TEXT`); } catch { /* exists */ }
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_notes_published ON notes(published);`);
 }
 
 // ─── Row → Type helpers ─────────────────────────────────────────────────────

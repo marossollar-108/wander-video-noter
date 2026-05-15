@@ -93,21 +93,28 @@ export function startPipeline(noteId: string): void {
     args.push("--output-language", outputLang);
   }
 
-  // Spawn the Python process
+  // Spawn the Python process — prefer local venv, fallback to system python3
   const currentPath = process.env.PATH || "";
-  const env = { ...process.env, KMP_DUPLICATE_LIB_OK: "TRUE", PYTHONWARNINGS: "ignore", ANTHROPIC_API_KEY: apiKey || process.env.ANTHROPIC_API_KEY || "", PATH: `/root/.deno/bin:${currentPath}` };
+  const venvPython = path.join(process.cwd(), ".venv", "bin", "python3");
+  const pythonBin = fs.existsSync(venvPython) ? venvPython : "python3";
+  const venvBin = path.join(process.cwd(), ".venv", "bin");
+  const env = { ...process.env, KMP_DUPLICATE_LIB_OK: "TRUE", PYTHONWARNINGS: "ignore", ANTHROPIC_API_KEY: apiKey || process.env.ANTHROPIC_API_KEY || "", PATH: `${venvBin}:/root/.deno/bin:${currentPath}` };
 
-  const proc = spawn("python3", args, {
+  const proc = spawn(pythonBin, args, {
     env,
     stdio: ["ignore", "pipe", "pipe"],
   });
 
   runningProcesses.set(noteId, proc);
 
-  // Collect stderr for error reporting
+  // Collect stderr + stdout for error reporting
   let stderrChunks: Buffer[] = [];
+  let stdoutChunks: Buffer[] = [];
   proc.stderr?.on("data", (chunk: Buffer) => {
     stderrChunks.push(chunk);
+  });
+  proc.stdout?.on("data", (chunk: Buffer) => {
+    stdoutChunks.push(chunk);
   });
 
   // Poll progress file every 2 seconds
@@ -192,25 +199,28 @@ export function startPipeline(noteId: string): void {
       }
     } else {
       let stderr = Buffer.concat(stderrChunks).toString("utf-8").trim();
+      let stdout = Buffer.concat(stdoutChunks).toString("utf-8").trim();
       // Filter out known harmless warnings
-      const lines = stderr.split("\n").filter((line) =>
+      const filterLine = (line: string) =>
         !line.includes("FP16 is not supported on CPU") &&
         !line.includes("UserWarning") &&
         !line.includes("warnings.warn") &&
-        line.trim() !== ""
-      );
-      const filteredStderr = lines.join("\n").trim();
+        line.trim() !== "";
+      const filteredStderr = stderr.split("\n").filter(filterLine).join("\n").trim();
+      // Prefer the tail of stdout (Python pipeline prints progress + final error there)
+      const stdoutTail = stdout.split("\n").filter(filterLine).slice(-8).join("\n").trim();
 
-      if (!filteredStderr && (code === null || code === 137 || code === 9)) {
-        // Process was killed (OOM or signal) — no useful stderr
+      if (!filteredStderr && !stdoutTail && (code === null || code === 137 || code === 9)) {
+        // Process was killed (OOM or signal) — no useful output
         db.updateNote(noteId, {
           status: "error",
-          error_msg: `Proces bol ukonceny (kod ${code}). Server pravdepodobne nema dostatok pamate pre toto video. Skuste mensi Whisper model (tiny/base).`,
+          error_msg: `Proces bol ukonceny (kod ${code}). Pravdepodobne nedostatok pamate pre toto video. Skuste mensi Whisper model (tiny/base).`,
         });
       } else {
+        const msg = filteredStderr || stdoutTail || `Proces skoncil s kodom ${code}`;
         db.updateNote(noteId, {
           status: "error",
-          error_msg: filteredStderr || `Proces skoncil s kodom ${code}`,
+          error_msg: msg,
         });
       }
     }

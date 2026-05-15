@@ -44,3 +44,10 @@ next-env.d.ts
 /data/
 /public/notes/
 /uploads/
+
+# electron build
+/dist-electron/
+/release/
+
+# python venv
+/.venv/

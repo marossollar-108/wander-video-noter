@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wander Video Noter
 
-## Getting Started
+Lokálna desktop appka (Electron + Next.js + Python) pre prevod videí na štruktúrované poznámky cez Whisper + Claude Vision.
 
-First, run the development server:
+## Prvé spustenie (jednorazové)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. System binárky
+brew install python3 ffmpeg
+
+# 2. Python venv + pipeline deps
+python3 -m venv .venv
+.venv/bin/pip install faster-whisper yt-dlp Pillow imagehash anthropic
+
+# 3. Node deps
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Pipeline si automaticky spustí `.venv/bin/python3`, ak `.venv/` v projekte existuje (fallback: systémový `python3`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+API kľúč (ANTHROPIC_API_KEY) nastav v Settings stránke v appke, alebo do `.env`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Spustenie ako Electron desktop appka
 
-## Learn More
+```bash
+npm run electron:dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Spustí súčasne `next dev` (port 3000) + Electron okno ktoré ho zobrazuje. Všetky výpočty (Whisper transcription, FFmpeg, image hashing) bežia lokálne — využijú CPU/RAM tvojho Macu, nie server.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Iba web (bez Electron okna)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run dev   # http://localhost:3000
+```
 
-## Deploy on Vercel
+## Build pre produkciu (cloud server)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run build && npm run start
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech Stack
+
+- **Frontend:** Next.js 16 (App Router) + React 19 + SWR
+- **Backend:** Next.js API routes
+- **DB:** SQLite (`data/wander.db`)
+- **Pipeline:** Python subprocess — Whisper, FFmpeg, imagehash, Claude Vision
+- **Desktop shell:** Electron 42
+
+## Štruktúra
+
+- `app/(app)/` — stránky (dashboard, new, library, queue, notes/[id], settings)
+- `app/api/` — REST endpointy
+- `electron/main.js` — Electron main process
+- `lib/pipeline.ts` — spawne `python3 python/video_notes.py`
+- `python/video_notes.py` — CLI pipeline
+- `data/` — SQLite DB (gitignored)
+- `public/notes/<id>/` — výstupy (HTML, obrázky)
+- `uploads/` — dočasné video súbory (gitignored)
