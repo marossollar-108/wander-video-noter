@@ -18,6 +18,7 @@ let mainWindow = null;
 let setupWindow = null;
 let nextServer = null;
 let serverUrl = DEV_URL;
+let shuttingDown = false;
 
 const userDataDir = app.getPath("userData");
 const venvDir = path.join(userDataDir, "venv");
@@ -194,7 +195,10 @@ async function startProductionServer() {
 
   nextServer.stdout.on("data", (b) => process.stdout.write("[next] " + b.toString()));
   nextServer.stderr.on("data", (b) => process.stderr.write("[next] " + b.toString()));
-  nextServer.on("exit", (code) => {
+  nextServer.on("exit", (code, signal) => {
+    if (shuttingDown) return;
+    // Normal termination signals from our own kill() — ignore
+    if (signal === "SIGTERM" || signal === "SIGINT" || code === 143 || code === 130 || code === null) return;
     if (code !== 0 && mainWindow) {
       dialog.showErrorBox("Next.js server crashed", `Exit code: ${code}`);
     }
@@ -342,6 +346,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
+  shuttingDown = true;
   if (nextServer) {
     try { nextServer.kill(); } catch { /* ignore */ }
   }
@@ -351,6 +356,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  shuttingDown = true;
   if (nextServer) {
     try { nextServer.kill(); } catch { /* ignore */ }
   }
