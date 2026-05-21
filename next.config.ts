@@ -34,6 +34,15 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "500mb",
     },
   },
+  // App routes were retired — keep only the landing page on "/".
+  // Old links (dashboard/new/library/queue/settings/galeria/notes) redirect home.
+  async redirects() {
+    const retired = ["dashboard", "new", "library", "queue", "settings", "galeria", "notes"];
+    return retired.flatMap((p) => [
+      { source: `/${p}`, destination: "/", permanent: false },
+      { source: `/${p}/:path*`, destination: "/", permanent: false },
+    ]);
+  },
 };
 
 export default nextConfig;

@@ -100,7 +100,6 @@ export default function LandingPage() {
           <div className="lnav-links">
             <a href="#about">O aplikacii</a>
             <a href="#features">Funkcie</a>
-            <a href="/galeria">Galeria</a>
             <a href="#origin">Pribeh</a>
             <a href="https://github.com/marossollar-108/wander-video-noter" target="_blank" rel="noopener">Zdrojovy kod</a>
           </div>
@@ -118,7 +117,6 @@ export default function LandingPage() {
             Dlhsie ma velmi trapilo, ked som dostal nejaky odkaz na video prednasku, tak ze si ju vypocujem v aute, ale potom zistujem, fuha, je tam kopec obrazkov a bez nich to casto nebolo ono. Tak som si spravil takuto appku — z toho videa vygeneruje HTML stranku so sumarizaciou aj s tymi obrazkami.
           </blockquote>
           <div className="lhero-cta">
-            <a href="/dashboard" className="lbtn lbtn-primary">./OTVORIT-APPKU</a>
             <a href="https://github.com/marossollar-108/wander-video-noter" className="lbtn lbtn-outline" target="_blank" rel="noopener">./ZDROJOVY-KOD</a>
           </div>
         </section>
